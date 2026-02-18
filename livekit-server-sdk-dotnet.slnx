@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LivekitApi.Tests/LivekitApi.Tests.csproj" />
+  <Project Path="LivekitApi/LivekitApi.csproj" />
+  <Project Path="LivekitRtc.Tests/LivekitRtc.Tests.csproj" />
+  <Project Path="LivekitRtc/LivekitRtc.csproj" />
+</Solution>

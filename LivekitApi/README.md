@@ -310,7 +310,7 @@ var webhookReceiver = new WebhookReceiver("yourkey", "yoursecret");
 
 // In order to use the validator, WebhookReceiver must have access to the raw POSTed string
 // This example uses "ASP.NET Core Web SDK" to handle the webhook request from LiveKit Server
-// (https://learn.microsoft.com/en-us/aspnet/core/razor-pages/web-sdk?view=aspnetcore-8.0)
+// (https://learn.microsoft.com/en-us/aspnet/core/razor-pages/web-sdk?view=aspnetcore-10.0)
 
 app.MapPost("/webhook-endpoint", async (HttpRequest request) => {
 

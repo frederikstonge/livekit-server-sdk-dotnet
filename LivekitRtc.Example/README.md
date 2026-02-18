@@ -4,7 +4,7 @@ Minimal standalone examples demonstrating the Livekit.Rtc.Dotnet package feature
 
 ## Prerequisites
 
-- .NET SDK 8.0+
+- .NET SDK 10.0+
 - Running LiveKit server (or use [LiveKit Cloud](https://livekit.io/cloud))
 
 ## Examples
