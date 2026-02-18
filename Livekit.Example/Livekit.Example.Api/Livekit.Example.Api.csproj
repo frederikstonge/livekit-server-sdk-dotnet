@@ -6,7 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../LivekitApi/LivekitApi.csproj" />
+    <ProjectReference Include="../../LivekitApi/LivekitApi.csproj" />
+    <ProjectReference Include="../Livekit.Example.ServiceDefaults/Livekit.Example.ServiceDefaults.csproj" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
   </ItemGroup>
 </Project>

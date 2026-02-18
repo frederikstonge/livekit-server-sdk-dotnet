@@ -17,6 +17,6 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LivekitApi\LivekitApi.csproj" />
+    <ProjectReference Include="../Livekit.Example/Livekit.Example.Api/Livekit.Example.Api.csproj" />
   </ItemGroup>
 </Project>

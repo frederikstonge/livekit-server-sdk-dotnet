@@ -20,8 +20,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LivekitApi\LivekitApi.csproj" />
-    <ProjectReference Include="..\LivekitRtc\LivekitRtc.csproj" />
+    <ProjectReference Include="../LivekitApi/LivekitApi.csproj" />
+    <ProjectReference Include="../LivekitRtc/LivekitRtc.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="web\**\*" CopyToOutputDirectory="PreserveNewest" />

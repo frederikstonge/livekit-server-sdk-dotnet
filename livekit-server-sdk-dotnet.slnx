@@ -1,6 +1,16 @@
 <Solution>
-  <Project Path="LivekitApi.Tests/LivekitApi.Tests.csproj" />
   <Project Path="LivekitApi/LivekitApi.csproj" />
-  <Project Path="LivekitRtc.Tests/LivekitRtc.Tests.csproj" />
+  <Project Path="LivekitApi.Tests/LivekitApi.Tests.csproj" />
   <Project Path="LivekitRtc/LivekitRtc.csproj" />
+  <Project Path="LivekitRtc.Example/BasicConnection/BasicConnection.csproj" />
+  <Project Path="LivekitRtc.Example/EventHandling/EventHandling.csproj" />
+  <Project Path="LivekitRtc.Example/PublishMedia/PublishMedia.csproj" />
+  <Project Path="LivekitRtc.Example/ReceiveMedia/ReceiveMedia.csproj" />
+  <Project Path="LivekitRtc.Example/RpcExample/RpcExample.csproj" />
+  <Project Path="LivekitRtc.Tests/LivekitRtc.Tests.csproj" />
+  <Project Path="LivekitAspire/LivekitAspire.csproj" />
+  <Project Path="Livekit.Example/Livekit.Example.Api/Livekit.Example.Api.csproj" />
+  <Project Path="Livekit.Example/Livekit.Example.AppHost/Livekit.Example.AppHost.csproj" />
+  <Project Path="Livekit.Example/Livekit.Example.ServiceDefaults/Livekit.Example.ServiceDefaults.csproj" />
+  <Project Path="Livekit.Tests/Livekit.Tests.csproj" />
 </Solution>
