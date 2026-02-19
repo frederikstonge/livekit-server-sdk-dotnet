@@ -307,14 +307,6 @@ namespace Livekit.Server.Sdk.Dotnet
             {
                 throw new ArgumentException("apiKey and apiSecret must be set");
             }
-            if (Encoding.Default.GetBytes(apiSecret).Length < 32)
-            {
-                throw new ArgumentException(
-                    "apiSecret must be at least 256 bits long. Currently it is "
-                        + Encoding.Default.GetBytes(apiSecret).Length * 8
-                        + " bits long"
-                );
-            }
         }
 
         public ClaimsModel Verify(string token)

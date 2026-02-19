@@ -33,13 +33,25 @@ public class AppHost
             });
 
         // Add Egress service for recording/streaming output
-        var egress = builder.AddLivekitEgress("livekit-egress", livekit, redis);
+        var egress = builder.AddLivekitEgress("livekit-egress", livekit, redis)
+        .WithLogLevel("debug")
+        .WithConfiguration(config =>
+        {
+        });
 
         // Add Ingress service for streaming input (RTMP/WHIP)
-        var ingress = builder.AddLivekitIngress("livekit-ingress", livekit, redis);
+        var ingress = builder.AddLivekitIngress("livekit-ingress", livekit, redis)
+        .WithLogLevel("debug")
+        .WithConfiguration(config =>
+        {
+        });
 
         // Add SIP service for telephony integration
-        var sip = builder.AddLivekitSip("livekit-sip", livekit, redis);
+        var sip = builder.AddLivekitSip("livekit-sip", livekit, redis)
+        .WithLogLevel("debug")
+        .WithConfiguration(config =>
+        {
+        });
 
         // Add API service with LiveKit reference
         // This automatically injects:

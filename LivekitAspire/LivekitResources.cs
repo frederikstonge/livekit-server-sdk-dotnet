@@ -75,6 +75,11 @@ public sealed class LivekitEgressResource(string name)
     /// Optional Redis resource for coordination.
     /// </summary>
     public IResourceBuilder<IResource>? RedisResource { get; internal set; }
+
+    /// <summary>
+    /// The LiveKit egress configuration that will be serialized to YAML.
+    /// </summary>
+    public LivekitEgressConfiguration Configuration { get; } = new();
 }
 
 /// <summary>
@@ -98,6 +103,11 @@ public sealed class LivekitIngressResource(string name)
     /// Optional Redis resource for coordination.
     /// </summary>
     public IResourceBuilder<IResource>? RedisResource { get; internal set; }
+
+    /// <summary>
+    /// The LiveKit ingress configuration that will be serialized to YAML.
+    /// </summary>
+    public LivekitIngressConfiguration Configuration { get; } = new();
 
     private EndpointReference? _rtmpReference;
     private EndpointReference? _whipReference;
@@ -133,6 +143,11 @@ public sealed class LivekitSipResource(string name)
     /// Optional Redis resource for coordination.
     /// </summary>
     public IResourceBuilder<IResource>? RedisResource { get; internal set; }
+
+    /// <summary>
+    /// The LiveKit SIP configuration that will be serialized to YAML.
+    /// </summary>
+    public LivekitSipConfiguration Configuration { get; } = new();
 
     private EndpointReference? _sipReference;
 

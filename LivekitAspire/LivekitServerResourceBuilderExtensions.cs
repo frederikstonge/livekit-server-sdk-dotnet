@@ -27,8 +27,8 @@ public static class LivekitServerResourceBuilderExtensions
     public static IResourceBuilder<LivekitServerResource> AddLivekitServer(
         this IDistributedApplicationBuilder builder,
         string name,
-        int? httpPort = null,
-        int? rtcTcpPort = null,
+        int httpPort = 7880,
+        int rtcTcpPort = 7881,
         string imageTag = "latest")
     {
         var resource = new LivekitServerResource(name);
@@ -90,6 +90,10 @@ public static class LivekitServerResourceBuilderExtensions
             File.WriteAllText(Path.Combine(configDir, "config.yaml"), yaml);
         });
 
+        resource.Configuration.Port = httpPort;
+        resource.Configuration.Rtc ??= new RtcConfiguration();
+        resource.Configuration.Rtc.TcpPort = rtcTcpPort;
+
         return builder.AddResource(resource)
             .WithImage(LivekitContainerImageTags.ServerImage)
             .WithImageRegistry(LivekitContainerImageTags.Registry)
@@ -105,6 +109,7 @@ public static class LivekitServerResourceBuilderExtensions
                 scheme: "tcp")
             .WithBindMount(configDir, "/etc/livekit", isReadOnly: true)
             .WithArgs("--config", "/etc/livekit/config.yaml")
+            .WithArgs("--bind", "0.0.0.0")
             .WithHttpHealthCheck("/");
     }
 
