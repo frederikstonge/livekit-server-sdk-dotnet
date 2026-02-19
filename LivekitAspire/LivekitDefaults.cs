@@ -13,5 +13,5 @@ internal static class LivekitDefaults
     /// <summary>
     /// Default API secret for development. Must be at least 256 bits (32 bytes).
     /// </summary>
-    internal const string ApiSecret = "secret";
+    internal const string ApiSecret = "secretsecretsecretsecretsecretsecretsecret";
 }

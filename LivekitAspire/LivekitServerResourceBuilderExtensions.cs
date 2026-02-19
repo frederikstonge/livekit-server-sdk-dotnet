@@ -38,6 +38,20 @@ public static class LivekitServerResourceBuilderExtensions
         // Register a callback to resolve deferred configuration and write the YAML file
         builder.Eventing.Subscribe<BeforeResourceStartedEvent>(resource, async (@event, ct) =>
         {
+            // Set API credentials from server resource
+            if (resource.ApiKeyParameter == null || resource.ApiSecretParameter == null)
+            {
+                throw new InvalidOperationException("API credentials must be configured for the LiveKit server. " +
+                    "Call WithDevMode() for development or WithApiCredentials() to set explicit credentials.");
+            }
+            var apiKey = await resource.ApiKeyParameter.Resource.GetValueAsync(ct);
+            var apiSecret = await resource.ApiSecretParameter.Resource.GetValueAsync(ct);
+
+            resource.Configuration.Keys = new Dictionary<string, string>()
+            {
+                { apiKey!, apiSecret! }
+            };
+
             // Resolve Redis configuration if a Redis resource is attached
             if (resource.RedisResource != null)
             {
@@ -169,10 +183,6 @@ public static class LivekitServerResourceBuilderExtensions
     public static IResourceBuilder<LivekitServerResource> WithDevMode(
         this IResourceBuilder<LivekitServerResource> builder)
     {
-
-        // Mark dev mode as enabled so WithReference knows to use defaults
-        builder.Resource.DevModeEnabled = true;
-
         // Set default credentials for resources that will reference this server
         if (builder.Resource.ApiKeyParameter == null)
         {
@@ -185,8 +195,6 @@ public static class LivekitServerResourceBuilderExtensions
                 $"{builder.Resource.Name}-api-secret", LivekitDefaults.ApiSecret, secret: true);
         }
 
-        // Dev mode is handled via command-line argument
-        builder.WithArgs("--dev");
         return builder;
     }
 

@@ -25,12 +25,6 @@ public sealed class LivekitServerResource(string name)
     public IResourceBuilder<ParameterResource>? ApiSecretParameter { get; internal set; }
 
     /// <summary>
-    /// Indicates whether dev mode is enabled.
-    /// When true, default credentials will be used for referencing resources.
-    /// </summary>
-    public bool DevModeEnabled { get; internal set; }
-
-    /// <summary>
     /// Optional Redis resource for clustering/scaling.
     /// </summary>
     public IResourceBuilder<IResource>? RedisResource { get; internal set; }
