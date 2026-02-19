@@ -10,4 +10,5 @@ internal static class LivekitContainerImageTags
     internal const string EgressImage = "livekit/egress";
     internal const string IngressImage = "livekit/ingress";
     internal const string SipImage = "livekit/sip";
+    internal const string CliImage = "livekit/livekit-cli";
 }

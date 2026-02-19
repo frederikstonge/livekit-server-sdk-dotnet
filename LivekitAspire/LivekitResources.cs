@@ -151,3 +151,22 @@ public sealed class LivekitSipResource(string name)
     public EndpointReference SipEndpoint =>
         _sipReference ??= new(this, SipEndpointName);
 }
+
+/// <summary>
+/// Represents a LiveKit CLI container resource.
+/// The CLI provides utilities for interacting with LiveKit servers, including room management,
+/// token generation, load testing, and administrative tasks.
+/// </summary>
+public sealed class LivekitCliResource(string name)
+    : ContainerResource(name)
+{
+    /// <summary>
+    /// Reference to the parent LiveKit server resource.
+    /// </summary>
+    public IResourceBuilder<LivekitServerResource>? ServerResource { get; internal set; }
+
+    /// <summary>
+    /// The LiveKit CLI configuration.
+    /// </summary>
+    public LivekitCliConfiguration Configuration { get; } = new();
+}

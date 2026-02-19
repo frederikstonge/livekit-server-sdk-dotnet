@@ -12,6 +12,7 @@ This package provides .NET Aspire resource integration for the complete LiveKit 
 | **Egress** | Recording and streaming output | `LivekitEgressResource` |
 | **Ingress** | Streaming input (RTMP, WHIP, URL pull) | `LivekitIngressResource` |
 | **SIP** | Telephony integration (SIP/PSTN) | `LivekitSipResource` |
+| **CLI** | Command-line utilities (room management, tokens, load testing) | `LivekitCliResource` |
 
 ## Quick Start
 
@@ -114,6 +115,22 @@ builder.AddLivekitSip("sip", livekit, redis,
     sipPort: 5060,     // SIP signaling port
     imageTag: "latest");
 ```
+
+### CLI
+
+The LiveKit CLI provides utilities for interacting with LiveKit servers, including room management, token generation, load testing, and administrative tasks.
+
+```csharp
+builder.AddLivekitCli("cli", livekit,
+    imageTag: "latest")
+    .WithVerbose();  // Enable verbose logging
+```
+
+Example CLI commands:
+- `lk room list` - List all rooms
+- `lk room create <room-name>` - Create a room
+- `lk token create --room <room> --identity <identity>` - Generate a token
+- `lk load-test` - Run load tests
 
 ## Using Custom API Credentials
 
