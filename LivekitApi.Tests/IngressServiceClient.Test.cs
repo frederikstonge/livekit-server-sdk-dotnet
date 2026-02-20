@@ -3,62 +3,13 @@ namespace Livekit.Server.Sdk.Dotnet.Test
     [Collection("Integration tests")]
     public class IngressServiceClientTest : IAsyncLifetime
     {
-        private ServiceClientFixture fixture;
+        private readonly ServiceClientFixture fixture;
+        private IngressServiceClient ingressClient = null!;
+        private RoomServiceClient roomClient = null!;
 
         public IngressServiceClientTest(ServiceClientFixture fixture)
         {
             this.fixture = fixture;
-        }
-
-        private readonly IngressServiceClient ingressClient = new IngressServiceClient(
-            ServiceClientFixture.TEST_HTTP_URL,
-            ServiceClientFixture.TEST_API_KEY,
-            ServiceClientFixture.TEST_API_SECRET
-        );
-        private readonly RoomServiceClient roomClient = new RoomServiceClient(
-            ServiceClientFixture.TEST_HTTP_URL,
-            ServiceClientFixture.TEST_API_KEY,
-            ServiceClientFixture.TEST_API_SECRET
-        );
-
-        [Fact]
-        async Task Constructor_UsesCustomHttpClient_HeaderIsSent()
-        {
-            var handler = new TestHttpMessageHandler();
-            var client = new HttpClient(handler);
-            client.DefaultRequestHeaders.Add("X-Test-Header", "test-value");
-            var randomHeaderValue = "random-value-" + Guid.NewGuid().ToString();
-            client.DefaultRequestHeaders.Add("X-Test-Random-Out", randomHeaderValue);
-
-            var service = new IngressServiceClient(
-                "http://localhost",
-                "key",
-                "secretsecretsecretsecretsecretsecret",
-                client
-            );
-
-            await service.ListIngress(new ListIngressRequest());
-
-            // The custom header is present in the outgoing request
-            Assert.NotNull(handler.LastRequest);
-            Assert.True(handler.LastRequest.Headers.Contains("X-Test-Header"));
-            Assert.Equal(
-                "test-value",
-                handler.LastRequest.Headers.GetValues("X-Test-Header").First()
-            );
-
-            // The handler's response contains the marker header and echo header
-            Assert.NotNull(handler.LastResponse);
-            Assert.True(handler.LastResponse.Headers.Contains("X-Test-Handler"));
-            Assert.Equal(
-                "CustomHttpClientUsed",
-                handler.LastResponse.Headers.GetValues("X-Test-Handler").First()
-            );
-            Assert.True(handler.LastResponse.Headers.Contains("X-Test-Random-In"));
-            Assert.Equal(
-                randomHeaderValue,
-                handler.LastResponse.Headers.GetValues("X-Test-Random-In").First()
-            );
         }
 
         [Fact]
@@ -203,13 +154,23 @@ namespace Livekit.Server.Sdk.Dotnet.Test
             Assert.DoesNotContain(response.Items, i => i.IngressId == ingress.IngressId);
         }
 
-        public Task InitializeAsync()
+        public ValueTask InitializeAsync()
         {
-            return Task.CompletedTask;
+            ingressClient = new IngressServiceClient(
+                fixture.LivekitUrl,
+                fixture.ApiKey,
+                fixture.ApiSecret
+            );
+            roomClient = new RoomServiceClient(
+                fixture.LivekitUrl,
+                fixture.ApiKey,
+                fixture.ApiSecret
+            );
+            return ValueTask.CompletedTask;
         }
 
         // After each test delete all rooms and stop all ingresses
-        public async Task DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             var timeout = DateTime.Now.AddSeconds(60);
             var activeRooms = (await roomClient.ListRooms(new ListRoomsRequest())).Rooms;

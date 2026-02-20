@@ -1,11 +1,6 @@
-using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Threading;
-using System.Threading.Tasks;
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Configurations;
-using DotNet.Testcontainers.Containers;
+using Aspire.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Livekit.Server.Sdk.Dotnet.Test;
 
@@ -16,209 +11,99 @@ public static class TestConstants
     public const string PARTICIPANT_IDENTITY = "test-participant";
 }
 
-public class ServiceClientFixture : IDisposable
+/// <summary>
+/// Fixture that uses Aspire's DistributedApplicationTestingBuilder to start the LiveKit infrastructure.
+/// This replaces the manual Testcontainers setup with Aspire's managed container orchestration.
+/// </summary>
+public class ServiceClientFixture : IAsyncLifetime
 {
-    public const string TEST_HTTP_URL = "http://localhost:7880";
-    public const string TEST_API_KEY = "devkey";
-    public const string TEST_API_SECRET = "secretsecretsecretsecretsecretsecretsecret";
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(120);
 
-    private const string LIVEKIT_SERVER_IMAGE = "livekit/livekit-server:master";
-    private const string LIVEKIT_EGRESS_IMAGE = "livekit/egress:latest";
-    private const string LIVEKIT_INGRESS_IMAGE = "livekit/ingress:latest";
-    private const string LIVEKIT_SIP_IMAGE = "livekit/sip:latest";
-    private const string LIVEKIT_CLI_IMAGE = "livekit/livekit-cli:latest";
-    private const string REDIS_IMAGE = "redis:latest";
+    private DistributedApplication? _app;
 
-    private string egressYaml =
-        @"api_key: "
-        + TEST_API_KEY
-        + @"
-api_secret: "
-        + TEST_API_SECRET
-        + @"
-ws_url: {WS_URL}
-insecure: true
-health_port: 9091
-redis:
-    address: {REDIS_ADDRESS}";
+    public string LivekitUrl { get; private set; } = default!;
 
-    private string ingressYaml =
-        @"api_key: "
-        + TEST_API_KEY
-        + @"
-api_secret: "
-        + TEST_API_SECRET
-        + @"
-ws_url: {WS_URL}
-redis:
-    address: {REDIS_ADDRESS}
-rtmp_port: 1935
-whip_port: 8085
-http_relay_port: 9090
-health_port: 9091";
+    // Using the known default dev credentials from LivekitDefaults (set by WithDevMode in AppHost)
+    public string ApiKey { get; private set; } = "devkey";
+    public string ApiSecret { get; private set; } = "secretsecretsecretsecretsecretsecretsecret";
 
-    private string sipYaml =
-        @"api_key: "
-        + TEST_API_KEY
-        + @"
-api_secret: "
-        + TEST_API_SECRET
-        + @"
-ws_url: {WS_URL}
-redis:
-    address: {REDIS_ADDRESS}
-sip_port: 5060
-rtp_port: 10000-20000";
-
-    private IContainer redisContainer;
-    private IContainer livekitServerContainer;
-    private IContainer egressContainer;
-    private IContainer ingressContainer;
-    private IContainer sipContainer;
-
-    public ServiceClientFixture()
+    public async ValueTask InitializeAsync()
     {
-        // Redis
-        redisContainer = new ContainerBuilder(REDIS_IMAGE)
-            .WithName("redis")
-            .WithPortBinding(6379, 6379)
-            .WithAutoRemove(true)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(6379))
-            .Build();
-        redisContainer.StartAsync().Wait();
-        // Livekit server
-        livekitServerContainer = new ContainerBuilder(LIVEKIT_SERVER_IMAGE)
-            .WithName("livekit-server")
-            .WithAutoRemove(true)
-            .WithEnvironment("LIVEKIT_KEYS", TEST_API_KEY + ": " + TEST_API_SECRET)
-            .WithEnvironment("LIVEKIT_REDIS_ADDRESS", redisContainer.IpAddress + ":6379")
-            .WithPortBinding(7880, 7880)
-            .DependsOn(redisContainer)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(7880))
-            .WithWaitStrategy(
-                Wait.ForUnixContainer()
-                    .UntilHttpRequestIsSucceeded(r =>
-                        r.ForPort(7880).ForPath("/").ForStatusCode(HttpStatusCode.OK)
-                    )
-            )
-            .Build();
-        livekitServerContainer.StartAsync().Wait();
-        // Egress
-        var egressConfigPath = GetTempFilePathWithExtension(".yaml");
-        File.WriteAllText(
-            egressConfigPath,
-            egressYaml
-                .Replace("{WS_URL}", "ws://" + livekitServerContainer.IpAddress + ":7880")
-                .Replace("{REDIS_ADDRESS}", redisContainer.IpAddress + ":6379")
-        );
-        egressContainer = new ContainerBuilder(LIVEKIT_EGRESS_IMAGE)
-            .WithName("egress")
-            .WithAutoRemove(true)
-            .WithBindMount(egressConfigPath, "/config.yaml")
-            .WithEnvironment("EGRESS_CONFIG_FILE", "/config.yaml")
-            .WithPortBinding(9091, true)
-            .DependsOn(redisContainer)
-            .DependsOn(livekitServerContainer)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(9091))
-            .WithWaitStrategy(
-                Wait.ForUnixContainer()
-                    .UntilHttpRequestIsSucceeded(request =>
-                        request.ForPort(9091).ForPath("/").ForStatusCode(HttpStatusCode.OK)
-                    )
-            )
-            .Build();
-        // Ingress
-        var ingressConfigPath = GetTempFilePathWithExtension(".yaml");
-        File.WriteAllText(
-            ingressConfigPath,
-            ingressYaml
-                .Replace("{WS_URL}", "ws://" + livekitServerContainer.IpAddress + ":7880")
-                .Replace("{REDIS_ADDRESS}", redisContainer.IpAddress + ":6379")
-        );
-        ingressContainer = new ContainerBuilder(LIVEKIT_INGRESS_IMAGE)
-            .WithName("ingress")
-            .WithAutoRemove(true)
-            .WithBindMount(ingressConfigPath, "/config.yaml")
-            .WithEnvironment("INGRESS_CONFIG_FILE", "/config.yaml")
-            .WithPortBinding(9091, true)
-            .DependsOn(redisContainer)
-            .DependsOn(livekitServerContainer)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilExternalTcpPortIsAvailable(9091))
-            .WithWaitStrategy(
-                Wait.ForUnixContainer()
-                    .UntilHttpRequestIsSucceeded(request =>
-                        request.ForPort(9091).ForPath("/").ForStatusCode(HttpStatusCode.OK)
-                    )
-            )
-            .Build();
-        // Sip
-        sipYaml = sipYaml
-            .Replace("{WS_URL}", "ws://" + livekitServerContainer.IpAddress + ":7880")
-            .Replace("{REDIS_ADDRESS}", redisContainer.IpAddress + ":6379");
-        sipContainer = new ContainerBuilder(LIVEKIT_SIP_IMAGE)
-            .WithName("sip")
-            .WithAutoRemove(true)
-            .WithEnvironment("SIP_CONFIG_BODY", sipYaml)
-            .WithPortBinding(5060, true)
-            .DependsOn(redisContainer)
-            .DependsOn(livekitServerContainer)
-            .WithWaitStrategy(
-                Wait.ForUnixContainer().UntilMessageIsLogged(".*sip signaling listening on.*")
-            )
-            .Build();
+        var cancellationToken = CancellationToken.None;
 
-        Task.WaitAll(
-            egressContainer.StartAsync(),
-            ingressContainer.StartAsync(),
-            sipContainer.StartAsync()
-        );
+        var appHost = await DistributedApplicationTestingBuilder
+            .CreateAsync<Projects.Livekit_Example_AppHost>(
+            args: [],
+            configureBuilder: (options, settings) =>
+            {
+                settings.EnvironmentName = "Development";
+            });
+
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Debug);
+        });
+
+        appHost.Services.ConfigureHttpClientDefaults(clientBuilder =>
+        {
+            clientBuilder.AddStandardResilienceHandler();
+        });
+
+        _app = await appHost.BuildAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+        await _app.StartAsync(cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+
+        // Wait for LiveKit server to be healthy
+        await _app.ResourceNotifications
+            .WaitForResourceHealthyAsync("livekit-server", cancellationToken)
+            .WaitAsync(DefaultTimeout, cancellationToken);
+
+        LivekitUrl = _app.GetEndpoint("livekit-server")?.ToString() ?? throw new InvalidOperationException("LiveKit URL not found");
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        var tasks = new List<Task>();
-        if (redisContainer != null)
+        if (_app != null)
         {
-            tasks.Add(redisContainer.DisposeAsync().AsTask());
+            await _app.DisposeAsync();
         }
-        if (livekitServerContainer != null)
-        {
-            tasks.Add(livekitServerContainer.DisposeAsync().AsTask());
-        }
-        if (egressContainer != null)
-        {
-            tasks.Add(egressContainer.DisposeAsync().AsTask());
-        }
-        if (ingressContainer != null)
-        {
-            tasks.Add(ingressContainer.DisposeAsync().AsTask());
-        }
-        if (sipContainer != null)
-        {
-            tasks.Add(sipContainer.DisposeAsync().AsTask());
-        }
-        Task.WhenAll(tasks).Wait();
     }
 
+    /// <summary>
+    /// Joins a participant to a room using the LiveKit CLI.
+    /// </summary>
     public async Task JoinParticipant(string roomName, string participantIdentity)
     {
-        await RunLivekitCliCommand(
-            ["room", "join", "--identity", participantIdentity, roomName],
-            Wait.ForUnixContainer().UntilMessageIsLogged(".*connected to room.*" + roomName + ".*")
-        );
+        var args = new[]
+        {
+            "room", "join",
+            "--identity", participantIdentity,
+            roomName
+        };
+
+        await RunLivekitCliAsync(args, waitForMessage: $"connected to room.*{roomName}");
     }
 
+    /// <summary>
+    /// Publishes a video track in a room using the LiveKit CLI.
+    /// </summary>
     public async Task PublishVideoTrackInRoom(
         RoomServiceClient client,
         string roomName,
-        string participantIdentity
-    )
+        string participantIdentity)
     {
-        await RunLivekitCliCommand(
-            ["room", "join", "--identity", participantIdentity, "--publish-demo", roomName],
-            Wait.ForUnixContainer().UntilMessageIsLogged(".*published simulcast track.*")
-        );
-        // Wait for participant to have tracks up to 10 seconds
+        var args = new[]
+        {
+            "room", "join",
+            "--identity", participantIdentity,
+            "--publish-demo",
+            roomName
+        };
+
+        await RunLivekitCliAsync(args, waitForMessage: "published simulcast track");
+
+        // Wait for participant to have tracks (up to 10 seconds)
         ParticipantInfo? participant = null;
         var timeout = DateTime.Now.AddSeconds(10);
         while ((participant == null || participant.Tracks.Count == 0) && DateTime.Now < timeout)
@@ -238,45 +123,173 @@ rtp_port: 10000-20000";
         }
     }
 
-    private async Task RunLivekitCliCommand(
-        string[] args,
-        IWaitForContainerOS? waitForContainerOS = null
-    )
+    private async Task RunLivekitCliAsync(string[] args, string? waitForMessage = null)
     {
-        var uri = new UriBuilder(
-            "http",
-            livekitServerContainer.IpAddress,
-            livekitServerContainer.GetMappedPublicPort(7880)
-        ).Uri;
-        var url = uri.ToString().TrimEnd('/');
-        string[] commands =
+        // Fall back to Docker - find the Aspire network and connect to it
+        // The LiveKit server container name follows the pattern: {project}-livekit-server-{hash}
+        var networkName = await GetAspireNetworkNameAsync();
+
+        var dockerWebsocketUrl = LivekitUrl
+            .Replace("http", "ws")
+            .Replace("https", "wss");
+            // .Replace("localhost", "livekit-server")  // Use container name as hostname
+            // .Replace("127.0.0.1", "livekit-server");
+
+        var dockerArgs = args.Concat(
+        [
+            "--api-key", ApiKey,
+            "--api-secret", ApiSecret,
+            "--url", dockerWebsocketUrl
+        ]).ToArray();
+
+        var fileName = "docker";
+        var arguments = $"run --rm --network {networkName} livekit/livekit-cli:latest {string.Join(" ", dockerArgs)}";
+
+        var process = new System.Diagnostics.Process
         {
-            "--url",
-            url,
-            "--api-key",
-            TEST_API_KEY,
-            "--api-secret",
-            TEST_API_SECRET,
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
         };
-        commands = commands.Concat(args).ToArray();
-        var lkContainerBuilder = new ContainerBuilder(LIVEKIT_CLI_IMAGE)
-            .WithAutoRemove(true)
-            .DependsOn(livekitServerContainer)
-            .WithCommand(commands);
-        if (waitForContainerOS != null)
+
+        var outputBuilder = new System.Text.StringBuilder();
+        var errorBuilder = new System.Text.StringBuilder();
+        var messageFound = new TaskCompletionSource<bool>();
+
+        process.OutputDataReceived += (sender, e) =>
         {
-            lkContainerBuilder = lkContainerBuilder.WithWaitStrategy(waitForContainerOS);
+            if (e.Data != null)
+            {
+                outputBuilder.AppendLine(e.Data);
+                if (waitForMessage != null && System.Text.RegularExpressions.Regex.IsMatch(e.Data, waitForMessage, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    messageFound.TrySetResult(true);
+                }
+            }
+        };
+
+        process.ErrorDataReceived += (sender, e) =>
+        {
+            if (e.Data != null)
+            {
+                errorBuilder.AppendLine(e.Data);
+                if (waitForMessage != null && System.Text.RegularExpressions.Regex.IsMatch(e.Data, waitForMessage, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                {
+                    messageFound.TrySetResult(true);
+                }
+            }
+        };
+
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        if (waitForMessage != null)
+        {
+            // Wait for the expected message or timeout
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+            var completedTask = await Task.WhenAny(messageFound.Task, timeoutTask);
+
+            if (completedTask == timeoutTask)
+            {
+                try { process.Kill(); } catch { }
+                throw new TimeoutException($"Timeout waiting for message: {waitForMessage}. Output: {outputBuilder}. Error: {errorBuilder}");
+            }
+
+            // Give it a moment to stabilize, then we're done - the CLI might still be running
+            await Task.Delay(500);
         }
-        var livekitClientContainer = lkContainerBuilder.Build();
-        await livekitClientContainer.StartAsync();
-        return;
+        else
+        {
+            // Wait for the process to complete
+            var completed = await Task.Run(() => process.WaitForExit(30000));
+            if (!completed)
+            {
+                try { process.Kill(); } catch { }
+                throw new TimeoutException($"Timeout waiting for CLI command. Output: {outputBuilder}. Error: {errorBuilder}");
+            }
+        }
     }
 
-    private string GetTempFilePathWithExtension(string extension)
+    private async Task<string> GetAspireNetworkNameAsync()
     {
-        var path = Path.GetTempPath();
-        var fileName = Path.ChangeExtension(Guid.NewGuid().ToString(), extension);
-        return Path.Combine(path, fileName);
+        // Find Docker networks that contain "aspire" or the livekit-server container
+        var process = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = "network ls --format {{.Name}}",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        process.Start();
+        var output = await process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        var networks = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Look for Aspire-created networks (typically named with project name or "aspire")
+        var aspireNetwork = networks.FirstOrDefault(n =>
+            n.Contains("aspire", StringComparison.OrdinalIgnoreCase) ||
+            n.Contains("livekit", StringComparison.OrdinalIgnoreCase) ||
+            n.Contains("apphost", StringComparison.OrdinalIgnoreCase));
+
+        if (aspireNetwork != null)
+        {
+            return aspireNetwork;
+        }
+
+        // Fallback: find which network the livekit-server container is on
+        var inspectProcess = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = "ps --filter name=livekit-server --format {{.Names}}",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+        inspectProcess.Start();
+        var containerName = (await inspectProcess.StandardOutput.ReadToEndAsync()).Trim();
+        await inspectProcess.WaitForExitAsync();
+
+        if (!string.IsNullOrEmpty(containerName))
+        {
+            var networkInspect = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = $"inspect {containerName} --format {{{{range $k, $v := .NetworkSettings.Networks}}}}{{{{$k}}}}{{{{end}}}}",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            networkInspect.Start();
+            var network = (await networkInspect.StandardOutput.ReadToEndAsync()).Trim();
+            await networkInspect.WaitForExitAsync();
+
+            if (!string.IsNullOrEmpty(network))
+            {
+                return network;
+            }
+        }
+
+        // Last resort: use bridge network
+        return "bridge";
     }
 }
 

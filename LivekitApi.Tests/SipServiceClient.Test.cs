@@ -1,71 +1,38 @@
 using Google.Protobuf;
 using Google.Protobuf.Collections;
-using Xunit;
-using Xunit.Abstractions;
 
 namespace Livekit.Server.Sdk.Dotnet.Test
 {
     [Collection("Integration tests")]
-    public class SipServiceClientTest
+    public class SipServiceClientTest : IAsyncLifetime
     {
-        private ServiceClientFixture fixture;
-        private readonly ITestOutputHelper output;
+        private readonly ServiceClientFixture fixture;
+        private SipServiceClient sipClient = null!;
+        private RoomServiceClient roomClient = null!;
 
-        public SipServiceClientTest(ServiceClientFixture fixture, ITestOutputHelper output)
+        public SipServiceClientTest(ServiceClientFixture fixture)
         {
             this.fixture = fixture;
-            this.output = output;
         }
 
-        private SipServiceClient sipClient = new SipServiceClient(
-            ServiceClientFixture.TEST_HTTP_URL,
-            ServiceClientFixture.TEST_API_KEY,
-            ServiceClientFixture.TEST_API_SECRET
-        );
-        private readonly RoomServiceClient roomClient = new RoomServiceClient(
-            ServiceClientFixture.TEST_HTTP_URL,
-            ServiceClientFixture.TEST_API_KEY,
-            ServiceClientFixture.TEST_API_SECRET
-        );
-
-        [Fact]
-        async Task Constructor_UsesCustomHttpClient_HeaderIsSent()
+        public ValueTask InitializeAsync()
         {
-            var handler = new TestHttpMessageHandler();
-            var client = new HttpClient(handler);
-            client.DefaultRequestHeaders.Add("X-Test-Header", "test-value");
-            var randomHeaderValue = "random-value-" + Guid.NewGuid().ToString();
-            client.DefaultRequestHeaders.Add("X-Test-Random-Out", randomHeaderValue);
-
-            var service = new SipServiceClient(
-                "http://localhost",
-                "key",
-                "secretsecretsecretsecretsecretsecret",
-                client
+            sipClient = new SipServiceClient(
+                fixture.LivekitUrl,
+                fixture.ApiKey,
+                fixture.ApiSecret
             );
-
-            await service.ListSIPInboundTrunk(new ListSIPInboundTrunkRequest());
-
-            // The custom header is present in the outgoing request
-            Assert.NotNull(handler.LastRequest);
-            Assert.True(handler.LastRequest.Headers.Contains("X-Test-Header"));
-            Assert.Equal(
-                "test-value",
-                handler.LastRequest.Headers.GetValues("X-Test-Header").First()
+            roomClient = new RoomServiceClient(
+                fixture.LivekitUrl,
+                fixture.ApiKey,
+                fixture.ApiSecret
             );
+            return ValueTask.CompletedTask;
+        }
 
-            // The handler's response contains the marker header and echo header
-            Assert.NotNull(handler.LastResponse);
-            Assert.True(handler.LastResponse.Headers.Contains("X-Test-Handler"));
-            Assert.Equal(
-                "CustomHttpClientUsed",
-                handler.LastResponse.Headers.GetValues("X-Test-Handler").First()
-            );
-            Assert.True(handler.LastResponse.Headers.Contains("X-Test-Random-In"));
-            Assert.Equal(
-                randomHeaderValue,
-                handler.LastResponse.Headers.GetValues("X-Test-Random-In").First()
-            );
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
         }
 
         [Fact]

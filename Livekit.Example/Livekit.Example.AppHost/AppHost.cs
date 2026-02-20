@@ -16,12 +16,16 @@ public class AppHost
             .WithLogLevel("debug")
             .WithConfiguration(config =>
             {
-                // Configure RTC settings
+                // Configure RTC settings for local development/testing
                 config.Rtc = new LivekitAspire.RtcConfiguration
                 {
                     PortRangeStart = 50000,
                     PortRangeEnd = 60000,
-                    UseExternalIp = false
+                    UseExternalIp = false,
+                    // Use ICE lite for simpler connectivity in Docker environments
+                    UseIceLite = true,
+                    // Enable TCP fallback for better compatibility
+                    AllowTcpFallback = true
                 };
 
                 // Configure default room settings
